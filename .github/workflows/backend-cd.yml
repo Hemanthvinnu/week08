@@ -4,26 +4,43 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy_backend:
+  deploy:
     runs-on: ubuntu-latest
-    environment: Production
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: azure/login@v1
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Log in to Azure
+        uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - run: az aks get-credentials --resource-group sit722-task8p-rg --name sit722-task8p-cluster --overwrite-existing
-      - run: az aks update --name sit722-task8p-cluster --resource-group sit722-task8p-rg --attach-acr sit722task8pacr
+      - name: Set AKS context
+        run: |
+          az aks get-credentials \
+            --name sit722-task8p-cluster \
+            --resource-group sit722-task8p-rg \
+            --overwrite-existing
 
-      - run: |
-          cd k8s/
-          kubectl apply -f configmaps.yaml
-          kubectl apply -f secrets.yaml
-          kubectl apply -f product-db.yaml
-          kubectl apply -f order-db.yaml
-          kubectl apply -f product-service.yaml
-          kubectl apply -f order-service.yaml
+      # 👇 Removed Attach ACR step (because we manually added role assignment)
 
-      - run: az logout
+      - name: Deploy ConfigMaps and Secrets
+        run: |
+          kubectl apply -f week08/k8s/configmaps.yaml
+          kubectl apply -f week08/k8s/secrets.yaml
+
+      - name: Deploy Databases
+        run: |
+          kubectl apply -f week08/k8s/product-db.yaml
+          kubectl apply -f week08/k8s/order-db.yaml
+
+      - name: Deploy Backend Services
+        run: |
+          kubectl apply -f week08/k8s/product-service.yaml
+          kubectl apply -f week08/k8s/order-service.yaml
+
+      - name: Verify Deployment
+        run: |
+          kubectl get pods -o wide
+          kubectl get svc -o wide
