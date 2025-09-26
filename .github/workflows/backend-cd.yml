@@ -23,22 +23,22 @@ jobs:
             --resource-group sit722-task8p-rg \
             --overwrite-existing
 
-      # 👇 Removed Attach ACR step (because we manually added role assignment)
+      # Removed Attach ACR step because you already did manual role assignment
 
       - name: Deploy ConfigMaps and Secrets
         run: |
-          kubectl apply -f week08/k8s/configmaps.yaml
-          kubectl apply -f week08/k8s/secrets.yaml
+          kubectl apply -f k8s/configmaps.yaml
+          kubectl apply -f k8s/secrets.yaml
 
       - name: Deploy Databases
         run: |
-          kubectl apply -f week08/k8s/product-db.yaml
-          kubectl apply -f week08/k8s/order-db.yaml
+          kubectl apply -f k8s/product-db.yaml
+          kubectl apply -f k8s/order-db.yaml
 
       - name: Deploy Backend Services
         run: |
-          kubectl apply -f week08/k8s/product-service.yaml
-          kubectl apply -f week08/k8s/order-service.yaml
+          kubectl apply -f k8s/product-service.yaml
+          kubectl apply -f k8s/order-service.yaml
 
       - name: Verify Deployment
         run: |
