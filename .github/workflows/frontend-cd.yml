@@ -6,11 +6,17 @@ on:
       product_api_ip:
         description: 'External IP of Product Service'
         required: true
-        default: 'http://<ip_address>:8000'
       order_api_ip:
         description: 'External IP of Order Service'
         required: true
-        default: 'http://<ip_address>:8001'
+      aks_cluster_name:
+        description: 'Name of the AKS Cluster'
+        required: true
+        default: 'week09-aks'
+      aks_resource_group:
+        description: 'Resource Group of the AKS Cluster'
+        required: true
+        default: 'week09-rg'
 
 jobs:
   deploy_frontend:
@@ -24,31 +30,23 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Login to ACR
-        run: az acr login --name ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+      - name: Get AKS Credentials
+        run: az aks get-credentials --resource-group ${{ github.event.inputs.aks_resource_group }} --name ${{ github.event.inputs.aks_cluster_name }} --overwrite-existing
 
-      - name: Inject Backend IPs into Frontend main.js
+      - name: Inject Backend IPs into Frontend
         run: |
-          sed -i "s|_PRODUCT_API_URL_|${{ inputs.product_api_ip }}|g" frontend/main.js
-          sed -i "s|_ORDER_API_URL_|${{ inputs.order_api_ip }}|g" frontend/main.js
-          cat frontend/main.js
+          sed -i "s|_PRODUCT_API_URL_|${{ github.event.inputs.product_api_ip }}|g" frontend/main.js
+          sed -i "s|_ORDER_API_URL_|${{ github.event.inputs.order_api_ip }}|g" frontend/main.js
 
-      - name: Build and Push Frontend
+      - name: Build and Push Frontend Image
         run: |
           docker build -t ${{ secrets.AZURE_CONTAINER_REGISTRY }}/frontend:latest ./frontend/
           docker push ${{ secrets.AZURE_CONTAINER_REGISTRY }}/frontend:latest
 
-      - name: Set Kubernetes context
-        run: |
-          az aks get-credentials \
-            --resource-group ${{ secrets.AKS_RESOURCE_GROUP }} \
-            --name ${{ secrets.AKS_CLUSTER_NAME }} \
-            --overwrite-existing
-
       - name: Deploy Frontend to AKS
         run: |
-          kubectl apply -f k8s/frontend.yaml
+          cd k8s/
+          kubectl apply -f frontend.yaml
 
       - name: Logout from Azure
-        if: always()
         run: az logout

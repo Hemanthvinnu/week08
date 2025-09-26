@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - development
       - main
     paths:
       - 'backend/**'
@@ -32,20 +31,20 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-      
+
       order_db:
         image: postgres:15
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: orders
+        ports:
+          - 5433:5432
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        ports:
-          - 5433:5432
 
     steps:
       - uses: actions/checkout@v4
@@ -57,9 +56,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          for req in backend/*/requirements.txt; do
-            pip install -r "$req"
-          done
+          pip install -r backend/product_service/requirements.txt
+          pip install -r backend/order_service/requirements.txt
           pip install pytest httpx
 
       - name: Run product_service tests
@@ -71,7 +69,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         run: pytest tests --maxfail=1 --disable-warnings -q
-      
+
       - name: Run order_service tests
         working-directory: backend/order_service
         env:
@@ -93,15 +91,19 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Login to ACR
+      - name: Login to Azure Container Registry
         run: az acr login --name ${{ env.ACR_LOGIN_SERVER }}
 
-      - name: Build and Push Product Service
+      - name: Build and Push Product Service Image
         run: |
           docker build -t ${{ env.ACR_LOGIN_SERVER }}/product-service:latest ./backend/product_service/
           docker push ${{ env.ACR_LOGIN_SERVER }}/product-service:latest
 
-      - name: Build and Push Order Service
+      - name: Build and Push Order Service Image
         run: |
           docker build -t ${{ env.ACR_LOGIN_SERVER }}/order-service:latest ./backend/order_service/
-          do
+          docker push ${{ env.ACR_LOGIN_SERVER }}/order-service:latest
+
+      - name: Logout from Azure
+        run: az logout
+        if: always()
