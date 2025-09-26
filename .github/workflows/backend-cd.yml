@@ -4,15 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       aks_cluster_name:
-        description: 'Name of the AKS Cluster'
         required: true
-        default: 'week09-aks'
+        default: 'sit722-task8p-cluster'
       aks_resource_group:
-        description: 'Resource Group of the AKS Cluster'
         required: true
-        default: 'week09-rg'
+        default: 'sit722-task8p-rg'
       aks_acr_name:
-        description: 'Name of ACR'
         required: true
         default: 'hvweek09acr'
 
@@ -27,27 +24,24 @@ jobs:
       - uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-          enable-AzPSSession: true
 
-      - name: Get AKS Credentials
-        run: az aks get-credentials --resource-group ${{ github.event.inputs.aks_resource_group }} --name ${{ github.event.inputs.aks_cluster_name }} --overwrite-existing
+      - run: |
+          az aks get-credentials --resource-group ${{ github.event.inputs.aks_resource_group }} \
+            --name ${{ github.event.inputs.aks_cluster_name }} --overwrite-existing
 
-      - name: Attach ACR
-        run: az aks update --name ${{ github.event.inputs.aks_cluster_name }} --resource-group ${{ github.event.inputs.aks_resource_group }} --attach-acr ${{ github.event.inputs.aks_acr_name }}
+      - run: |
+          az aks update --name ${{ github.event.inputs.aks_cluster_name }} \
+            --resource-group ${{ github.event.inputs.aks_resource_group }} \
+            --attach-acr ${{ github.event.inputs.aks_acr_name }}
 
-      - name: Deploy Backend Infrastructure
-        run: |
+      - run: |
           cd k8s/
           kubectl apply -f configmaps.yaml
           kubectl apply -f secrets.yaml
           kubectl apply -f product-db.yaml
           kubectl apply -f order-db.yaml
-
-      - name: Deploy Backend Microservices
-        run: |
-          cd k8s/
           kubectl apply -f product-service.yaml
           kubectl apply -f order-service.yaml
 
-      - name: Logout from Azure
-        run: az logout
+      - run: az logout
+        if: always()

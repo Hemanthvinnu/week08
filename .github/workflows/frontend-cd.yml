@@ -4,19 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       product_api_ip:
-        description: 'External IP of Product Service'
         required: true
+        default: 'http://135.171.176.121:8000'
       order_api_ip:
-        description: 'External IP of Order Service'
         required: true
+        default: 'http://20.6.51.145:8001'
       aks_cluster_name:
-        description: 'Name of the AKS Cluster'
         required: true
-        default: 'week09-aks'
+        default: 'sit722-task8p-cluster'
       aks_resource_group:
-        description: 'Resource Group of the AKS Cluster'
         required: true
-        default: 'week09-rg'
+        default: 'sit722-task8p-rg'
 
 jobs:
   deploy_frontend:
@@ -30,23 +28,26 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Get AKS Credentials
-        run: az aks get-credentials --resource-group ${{ github.event.inputs.aks_resource_group }} --name ${{ github.event.inputs.aks_cluster_name }} --overwrite-existing
+      - run: az acr login --name ${{ secrets.AZURE_CONTAINER_REGISTRY }}
 
-      - name: Inject Backend IPs into Frontend
-        run: |
-          sed -i "s|_PRODUCT_API_URL_|${{ github.event.inputs.product_api_ip }}|g" frontend/main.js
-          sed -i "s|_ORDER_API_URL_|${{ github.event.inputs.order_api_ip }}|g" frontend/main.js
+      - run: |
+          sed -i "s|_PRODUCT_API_URL_|${{ inputs.product_api_ip }}|g" frontend/main.js
+          sed -i "s|_ORDER_API_URL_|${{ inputs.order_api_ip }}|g" frontend/main.js
+          echo "✅ Injected backend IPs into frontend/main.js"
 
-      - name: Build and Push Frontend Image
-        run: |
+      - run: |
           docker build -t ${{ secrets.AZURE_CONTAINER_REGISTRY }}/frontend:latest ./frontend/
           docker push ${{ secrets.AZURE_CONTAINER_REGISTRY }}/frontend:latest
 
-      - name: Deploy Frontend to AKS
-        run: |
+      - uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ inputs.aks_resource_group }}
+          cluster-name: ${{ inputs.aks_cluster_name }}
+
+      - run: |
           cd k8s/
           kubectl apply -f frontend.yaml
+          echo "✅ Frontend deployed"
 
-      - name: Logout from Azure
-        run: az logout
+      - run: az logout
+        if: always()
