@@ -2,16 +2,6 @@ name: CD - Deploy Backend Services to AKS
 
 on:
   workflow_dispatch:
-    inputs:
-      aks_cluster_name:
-        required: true
-        default: 'sit722-task8p-cluster'
-      aks_resource_group:
-        required: true
-        default: 'sit722-task8p-rg'
-      aks_acr_name:
-        required: true
-        default: 'hvweek09acr'
 
 jobs:
   deploy_backend:
@@ -20,19 +10,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - run: |
-          az aks get-credentials --resource-group ${{ github.event.inputs.aks_resource_group }} \
-            --name ${{ github.event.inputs.aks_cluster_name }} --overwrite-existing
-
-      - run: |
-          az aks update --name ${{ github.event.inputs.aks_cluster_name }} \
-            --resource-group ${{ github.event.inputs.aks_resource_group }} \
-            --attach-acr ${{ github.event.inputs.aks_acr_name }}
+      - run: az aks get-credentials --resource-group sit722-task8p-rg --name sit722-task8p-cluster --overwrite-existing
+      - run: az aks update --name sit722-task8p-cluster --resource-group sit722-task8p-rg --attach-acr sit722task8pacr
 
       - run: |
           cd k8s/
@@ -44,4 +27,3 @@ jobs:
           kubectl apply -f order-service.yaml
 
       - run: az logout
-        if: always()

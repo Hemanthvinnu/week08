@@ -10,7 +10,7 @@ on:
       - '.github/workflows/frontend_ci.yml'
 
 env:
-  ACR_LOGIN_SERVER: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+  ACR_LOGIN_SERVER: sit722task8pacr.azurecr.io
   IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}
 
 jobs:
@@ -19,17 +19,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - run: az acr login --name ${{ env.ACR_LOGIN_SERVER }}
+      - run: az acr login --name sit722task8pacr
 
-      - run: |
-          docker build -t ${{ env.ACR_LOGIN_SERVER }}/frontend:latest ./frontend/
-          docker push ${{ env.ACR_LOGIN_SERVER }}/frontend:latest
-          echo "✅ Frontend image pushed"
+      - name: Build and Push Frontend Image
+        run: |
+          docker build -t sit722task8pacr.azurecr.io/frontend:latest ./frontend/
+          docker push sit722task8pacr.azurecr.io/frontend:latest
 
       - run: az logout
         if: always()

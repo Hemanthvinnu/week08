@@ -10,7 +10,7 @@ on:
       - '.github/workflows/backend_ci.yml'
 
 env:
-  ACR_LOGIN_SERVER: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+  ACR_LOGIN_SERVER: sit722task8pacr.azurecr.io
   IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}
 
 jobs:
@@ -27,8 +27,8 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 10s --health-timeout 5s --health-retries 5
-        ports:
-          - 5432:5432
+        ports: [5432:5432]
+
       order_db:
         image: postgres:15
         env:
@@ -38,22 +38,19 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 10s --health-timeout 5s --health-retries 5
-        ports:
-          - 5433:5432
+        ports: [5433:5432]
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
       - name: Install dependencies
         run: |
-          pip install --upgrade pip pytest httpx
-          for req in backend/*/requirements.txt; do
-            pip install -r "$req"
-          done
+          pip install --upgrade pip
+          for req in backend/*/requirements.txt; do pip install -r "$req"; done
+          pip install pytest httpx
 
       - name: Run product_service tests
         working-directory: backend/product_service
@@ -81,20 +78,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - run: az acr login --name ${{ env.ACR_LOGIN_SERVER }}
+      - run: az acr login --name sit722task8pacr
 
-      - run: |
-          docker build -t ${{ env.ACR_LOGIN_SERVER }}/product-service:latest ./backend/product_service/
-          docker push ${{ env.ACR_LOGIN_SERVER }}/product-service:latest
+      - name: Build and Push Product Service
+        run: |
+          docker build -t sit722task8pacr.azurecr.io/product_service:latest ./backend/product_service/
+          docker push sit722task8pacr.azurecr.io/product_service:latest
 
-      - run: |
-          docker build -t ${{ env.ACR_LOGIN_SERVER }}/order-service:latest ./backend/order_service/
-          docker push ${{ env.ACR_LOGIN_SERVER }}/order-service:latest
+      - name: Build and Push Order Service
+        run: |
+          docker build -t sit722task8pacr.azurecr.io/order_service:latest ./backend/order_service/
+          docker push sit722task8pacr.azurecr.io/order_service:latest
 
       - run: az logout
         if: always()
